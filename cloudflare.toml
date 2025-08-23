@@ -1,0 +1,11 @@
+name = "nextjs-ssr-app"
+compatibility_date = "2025-08-24"
+
+[build]
+  command = "npm run build"
+  cwd = "."
+  output_dir = "out"
+
+[[routes]]
+  pattern = "/*"
+  script = "nextjs-worker"
