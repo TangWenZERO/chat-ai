@@ -1,9 +1,6 @@
-name = "my-nextjs-ssr-app"
-compatibility_date = "2025-08-24"
-
 [build]
-  command = "npm run build"
-  directory = ".next"
+  command = "next build && next export"  # 构建命令
+  directory = ".next"  # 输出目录
 
 [env.production]
-  main = "dist/worker.js"
+  pages_build_output_dir = ".next"  # 使用 .next 目录作为输出目录
