@@ -1,6 +1,0 @@
-[build]
-  command = "next build && next export"  # 构建命令
-  directory = ".next"  # 输出目录
-
-[env.production]
-  pages_build_output_dir = ".next"  # 使用 .next 目录作为输出目录
