@@ -7,9 +7,11 @@
     "build": "next build",
     "export": "next export",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "npx wrangler deploy"
   },
   "dependencies": {
+    "@cloudflare/next-on-pages": "^1.13.14",
     "lucide-react": "^0.541.0",
     "next": "15.5.0",
     "react": "19.1.0",

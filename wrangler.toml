@@ -1,9 +1,10 @@
-name = "nextjs-worker"
-type = "javascript"
+name = "my-nextjs-ssr-app"
+compatibility_date = "2025-08-24"
 
 [build]
-command = "next build"
+  command = "npm run build"
 
 [env.production]
-workers_dev = true
-compatibility_date = "2025-08-24"
+  account_id = "your-cloudflare-account-id"
+  workers_dev = false
+  route = "your-production-route"
