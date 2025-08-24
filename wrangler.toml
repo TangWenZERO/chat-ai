@@ -3,8 +3,7 @@ compatibility_date = "2025-08-24"
 
 [build]
   command = "npm run build"
+  directory = ".next"
 
 [env.production]
-  account_id = "your-cloudflare-account-id"
-  workers_dev = false
-  route = "your-production-route"
+  main = "dist/worker.js"
