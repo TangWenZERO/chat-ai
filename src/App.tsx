@@ -1,5 +1,7 @@
+// AIChatInterface.tsx
 import React, { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Loader } from "lucide-react";
+import styles from "./AIChatInterface.module.css";
 
 interface Message {
   id: string;
@@ -90,51 +92,41 @@ const AIChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto bg-gradient-to-br from-slate-50 to-slate-100 shadow-2xl">
+    <div className={styles.chatContainer}>
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/50 p-4 shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-            <Bot className="w-6 h-6 text-white" />
+      <div className={styles.header}>
+        <div className={styles.headerContent}>
+          <div className={styles.avatar}>
+            <Bot className={styles.avatarIcon} />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">AI助手</h1>
-            <p className="text-sm text-slate-500">在线 · 随时为您服务</p>
+          <div className={styles.headerInfo}>
+            <h1>AI助手</h1>
+            <p>在线 · 随时为您服务</p>
           </div>
         </div>
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className={styles.messagesContainer}>
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex ${
-              message.sender === "user" ? "justify-end" : "justify-start"
-            } animate-fade-in`}
+            className={`${styles.messageWrapper} ${styles[message.sender]}`}
           >
             <div
-              className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
-                message.sender === "user"
-                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md"
-                  : "bg-white text-slate-800 rounded-bl-md border border-slate-200/50"
-              }`}
+              className={`${styles.messageBubble} ${styles[message.sender]}`}
             >
-              <div className="flex items-start space-x-2">
+              <div className={styles.messageContent}>
                 {message.sender === "ai" && (
-                  <Bot className="w-4 h-4 mt-1 text-blue-500 flex-shrink-0" />
+                  <Bot className={`${styles.messageIcon} ${styles.ai}`} />
                 )}
                 {message.sender === "user" && (
-                  <User className="w-4 h-4 mt-1 text-blue-100 flex-shrink-0" />
+                  <User className={`${styles.messageIcon} ${styles.user}`} />
                 )}
-                <div className="flex-1">
-                  <p className="text-sm leading-relaxed">{message.content}</p>
+                <div className={styles.messageText}>
+                  <p>{message.content}</p>
                   <p
-                    className={`text-xs mt-2 ${
-                      message.sender === "user"
-                        ? "text-blue-100"
-                        : "text-slate-500"
-                    }`}
+                    className={`${styles.timestamp} ${styles[message.sender]}`}
                   >
                     {message.timestamp.toLocaleTimeString("zh-CN", {
                       hour: "2-digit",
@@ -149,15 +141,13 @@ const AIChatInterface: React.FC = () => {
 
         {/* Loading indicator */}
         {isLoading && (
-          <div className="flex justify-start animate-fade-in">
-            <div className="max-w-xs lg:max-w-md px-4 py-3 rounded-2xl rounded-bl-md bg-white text-slate-800 border border-slate-200/50 shadow-sm">
-              <div className="flex items-center space-x-2">
-                <Bot className="w-4 h-4 text-blue-500" />
-                <div className="flex items-center space-x-1">
-                  <Loader className="w-4 h-4 animate-spin text-blue-500" />
-                  <span className="text-sm text-slate-600">
-                    AI正在思考中...
-                  </span>
+          <div className={styles.loadingWrapper}>
+            <div className={styles.loadingBubble}>
+              <div className={styles.loadingContent}>
+                <Bot className={styles.loadingIcon} />
+                <div className={styles.loadingIndicator}>
+                  <Loader className={styles.spinner} />
+                  <span className={styles.loadingText}>AI正在思考中...</span>
                 </div>
               </div>
             </div>
@@ -168,8 +158,8 @@ const AIChatInterface: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="bg-white/80 backdrop-blur-md border-t border-slate-200/50 p-4">
-        <div className="flex items-center space-x-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 transition-all duration-200">
+      <div className={styles.inputArea}>
+        <div className={styles.inputWrapper}>
           <input
             ref={inputRef}
             type="text"
@@ -177,18 +167,18 @@ const AIChatInterface: React.FC = () => {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="输入您的消息..."
-            className="flex-1 px-4 py-3 bg-transparent border-none outline-none text-slate-800 placeholder-slate-400"
+            className={styles.messageInput}
             disabled={isLoading}
           />
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isLoading}
-            className="mr-2 p-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+            className={styles.sendButton}
           >
-            <Send className="w-4 h-4" />
+            <Send className={styles.sendIcon} />
           </button>
         </div>
-        <p className="text-xs text-slate-500 mt-2 text-center">
+        <p className={styles.inputHint}>
           按 Enter 发送消息，Shift + Enter 换行
         </p>
       </div>
