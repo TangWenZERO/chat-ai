@@ -1,6 +1,15 @@
-// AIChatInterface.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User,
+  Loader,
+  Settings,
+  X,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import styles from "./AIChatInterface.module.css";
 
 interface Message {
@@ -8,6 +17,7 @@ interface Message {
   content: string;
   sender: "user" | "ai";
   timestamp: Date;
+  isStreaming?: boolean;
 }
 
 const AIChatInterface: React.FC = () => {
@@ -21,8 +31,13 @@ const AIChatInterface: React.FC = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiUrl, setApiUrl] = useState("");
+  const [apiToken, setApiToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,32 +47,13 @@ const AIChatInterface: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const simulateAIResponse = (userMessage: string): string => {
-    const responses = [
-      "这是一个很有趣的问题！让我来为您分析一下...",
-      "根据您的描述，我建议您可以尝试以下几个方法...",
-      "我理解您的想法。从技术角度来看，这个问题可以这样解决...",
-      "感谢您的提问！基于我的知识库，我可以为您提供以下信息...",
-      "这确实是一个值得深入探讨的话题。让我详细解释一下...",
-    ];
-
-    if (userMessage.includes("你好") || userMessage.includes("hello")) {
-      return "你好！很高兴与您对话。请告诉我您需要什么帮助？";
-    }
-
-    if (userMessage.includes("React") || userMessage.includes("前端")) {
-      return "React是一个优秀的前端框架！它的组件化思想和虚拟DOM机制让开发变得更加高效。您想了解React的哪个方面呢？";
-    }
-
-    if (userMessage.includes("AI") || userMessage.includes("人工智能")) {
-      return "AI技术正在快速发展，从机器学习到深度学习，再到现在的大语言模型，每一步都在改变我们的生活方式。您对AI的哪个领域特别感兴趣？";
-    }
-
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
-
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
+    if (!apiUrl.trim()) {
+      alert("请先设置API URL");
+      setShowSettings(true);
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -67,21 +63,210 @@ const AIChatInterface: React.FC = () => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue("");
     setIsLoading(true);
 
-    // 模拟AI思考时间
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        content: simulateAIResponse(inputValue),
-        sender: "ai",
-        timestamp: new Date(),
+    // 创建一个新的AI消息用于流式更新
+    const aiMessageId = (Date.now() + 1).toString();
+    const aiMessage: Message = {
+      id: aiMessageId,
+      content: "",
+      sender: "ai",
+      timestamp: new Date(),
+      isStreaming: true,
+    };
+
+    setMessages((prev) => [...prev, aiMessage]);
+
+    try {
+      // 取消之前的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      abortControllerRef.current = new AbortController();
+
+      const requestData = {
+        messages: [
+          {
+            role: "user",
+            content: currentInput,
+          },
+        ],
+        model: "deepseek-chat",
+        token: apiToken,
       };
 
-      setMessages((prev) => [...prev, aiResponse]);
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiToken && { Authorization: `Bearer ${apiToken}` }),
+        },
+        body: JSON.stringify(requestData),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("无法获取响应流");
+      }
+
+      const decoder = new TextDecoder();
+      let responseText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim();
+
+            // 处理结束标记
+            if (data === "[DONE]") {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMessageId ? { ...msg, isStreaming: false } : msg
+                )
+              );
+              setIsLoading(false);
+              return;
+            }
+
+            // 跳过空数据
+            if (!data) continue;
+
+            try {
+              const parsed = JSON.parse(data);
+
+              // 处理 OpenAI 格式的流数据 (choices.delta.content)
+              if (
+                parsed.choices &&
+                parsed.choices[0] &&
+                parsed.choices[0].delta &&
+                parsed.choices[0].delta.content
+              ) {
+                responseText += parsed.choices[0].delta.content;
+
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: responseText }
+                      : msg
+                  )
+                );
+              }
+              // 处理 DeepSeek 格式的流数据 (直接的 content 字段)
+              else if (parsed.content) {
+                responseText += parsed.content;
+
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: responseText }
+                      : msg
+                  )
+                );
+              }
+              // 处理其他可能的格式
+              else if (parsed.text) {
+                responseText += parsed.text;
+
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: responseText }
+                      : msg
+                  )
+                );
+              }
+            } catch (e) {
+              console.log("JSON Parse error:", e, "Data:", data);
+              // 如果不是JSON格式，尝试直接作为文本处理
+              if (data && data !== "[DONE]" && !data.startsWith("{")) {
+                responseText += data;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: responseText }
+                      : msg
+                  )
+                );
+              }
+            }
+          }
+          // 处理事件行
+          else if (line.startsWith("event: ")) {
+            const eventType = line.slice(7).trim();
+
+            if (eventType === "finish" || eventType === "done") {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMessageId ? { ...msg, isStreaming: false } : msg
+                )
+              );
+              setIsLoading(false);
+              return;
+            } else if (eventType === "error") {
+              // 下一行应该包含错误数据
+              continue;
+            }
+          }
+          // 处理错误事件的数据
+          else if (
+            line.startsWith("data: ") &&
+            lines[lines.indexOf(line) - 1]?.startsWith("event: error")
+          ) {
+            const errorData = line.slice(6);
+            try {
+              const errorObj = JSON.parse(errorData);
+              throw new Error(
+                errorObj.error || errorObj.message || "发生未知错误"
+              );
+            } catch (e) {
+              throw new Error("发生未知错误");
+            }
+          }
+        }
+      }
+
+      // 如果循环结束但没有收到完成信号，标记为完成
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMessageId ? { ...msg, isStreaming: false } : msg
+        )
+      );
       setIsLoading(false);
-    }, 1000 + Math.random() * 2000);
+    } catch (error: any) {
+      console.error("API请求失败:", error);
+
+      if (error.name === "AbortError") {
+        return;
+      }
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMessageId
+            ? {
+                ...msg,
+                content: `抱歉，请求失败了：${error.message}`,
+                isStreaming: false,
+              }
+            : msg
+        )
+      );
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -89,6 +274,10 @@ const AIChatInterface: React.FC = () => {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const toggleSettings = () => {
+    setShowSettings(!showSettings);
   };
 
   return (
@@ -103,7 +292,58 @@ const AIChatInterface: React.FC = () => {
             <h1>AI助手</h1>
             <p>在线 · 随时为您服务</p>
           </div>
+          <button
+            className={`${styles.settingsButton} ${
+              showSettings ? styles.active : ""
+            }`}
+            onClick={toggleSettings}
+          >
+            <Settings size={20} />
+          </button>
         </div>
+
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className={styles.settingsPanel}>
+            <div className={styles.settingsHeader}>
+              <h3 className={styles.settingsTitle}>API 设置</h3>
+              <button className={styles.closeButton} onClick={toggleSettings}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>API URL</label>
+              <input
+                className={styles.settingsInput}
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="https://api.example.com/chat"
+              />
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Token</label>
+              <div className={styles.tokenInputWrapper}>
+                <input
+                  className={styles.settingsInput}
+                  type={showToken ? "text" : "password"}
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                  placeholder="请输入API Token"
+                  style={{ paddingRight: "2.5rem" }}
+                />
+                <button
+                  className={styles.tokenToggle}
+                  onClick={() => setShowToken(!showToken)}
+                >
+                  {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Messages Container */}
@@ -124,7 +364,12 @@ const AIChatInterface: React.FC = () => {
                   <User className={`${styles.messageIcon} ${styles.user}`} />
                 )}
                 <div className={styles.messageText}>
-                  <p>{message.content}</p>
+                  <div className={styles.markdownContent}>
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    {message.isStreaming && (
+                      <span className={styles.streamingCursor}></span>
+                    )}
+                  </div>
                   <p
                     className={`${styles.timestamp} ${styles[message.sender]}`}
                   >
@@ -140,7 +385,7 @@ const AIChatInterface: React.FC = () => {
         ))}
 
         {/* Loading indicator */}
-        {isLoading && (
+        {isLoading && messages[messages.length - 1]?.sender !== "ai" && (
           <div className={styles.loadingWrapper}>
             <div className={styles.loadingBubble}>
               <div className={styles.loadingContent}>
