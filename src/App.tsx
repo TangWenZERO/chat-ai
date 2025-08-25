@@ -34,7 +34,9 @@ const AIChatInterface: React.FC = () => {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [apiUrl, setApiUrl] = useState("");
+  const [apiUrl, setApiUrl] = useState(
+    "https://chat-wrokers.tangw4591.workers.dev/deepseek/api"
+  );
   const [apiToken, setApiToken] = useState("");
   const [showToken, setShowToken] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -330,6 +332,7 @@ const AIChatInterface: React.FC = () => {
             <div className={styles.inputGroup}>
               <label className={styles.label}>API URL</label>
               <input
+                disabled={true}
                 className={styles.settingsInput}
                 type="text"
                 value={apiUrl}
