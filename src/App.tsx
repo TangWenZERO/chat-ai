@@ -21,6 +21,8 @@ interface Message {
 }
 
 const AIChatInterface: React.FC = () => {
+  const responseTextRef = useRef<Record<string, string>>({});
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -118,7 +120,7 @@ const AIChatInterface: React.FC = () => {
       }
 
       const decoder = new TextDecoder();
-      let responseText = "";
+      responseTextRef.current[aiMessageId] = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -156,36 +158,46 @@ const AIChatInterface: React.FC = () => {
                 parsed.choices[0].delta &&
                 parsed.choices[0].delta.content
               ) {
-                responseText += parsed.choices[0].delta.content;
+                responseTextRef.current[aiMessageId] +=
+                  parsed.choices[0].delta.content;
 
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === aiMessageId
-                      ? { ...msg, content: responseText }
+                      ? {
+                          ...msg,
+                          content: responseTextRef.current[aiMessageId],
+                        }
                       : msg
                   )
                 );
               }
               // 处理 DeepSeek 格式的流数据 (直接的 content 字段)
               else if (parsed.content) {
-                responseText += parsed.content;
+                responseTextRef.current[aiMessageId] += parsed.content;
 
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === aiMessageId
-                      ? { ...msg, content: responseText }
+                      ? {
+                          ...msg,
+                          content: responseTextRef.current[aiMessageId],
+                        }
                       : msg
                   )
                 );
               }
               // 处理其他可能的格式
               else if (parsed.text) {
-                responseText += parsed.text;
+                responseTextRef.current[aiMessageId] += parsed.text;
 
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === aiMessageId
-                      ? { ...msg, content: responseText }
+                      ? {
+                          ...msg,
+                          content: responseTextRef.current[aiMessageId],
+                        }
                       : msg
                   )
                 );
@@ -194,11 +206,14 @@ const AIChatInterface: React.FC = () => {
               console.log("JSON Parse error:", e, "Data:", data);
               // 如果不是JSON格式，尝试直接作为文本处理
               if (data && data !== "[DONE]" && !data.startsWith("{")) {
-                responseText += data;
+                responseTextRef.current[aiMessageId] += data;
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === aiMessageId
-                      ? { ...msg, content: responseText }
+                      ? {
+                          ...msg,
+                          content: responseTextRef.current[aiMessageId],
+                        }
                       : msg
                   )
                 );
