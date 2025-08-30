@@ -6,7 +6,7 @@ import "./App.css";
 const md = new MarkdownIt({
   html: false,
   linkify: true,
-  typographer: true
+  typographer: true,
 });
 
 const AIChatInterface: React.FC = () => {
@@ -18,14 +18,11 @@ const AIChatInterface: React.FC = () => {
     sendMessage,
     handleKeyPress,
     clearMessages,
-    apiUrl,
-    setApiUrl,
-    apiToken,
     setApiToken,
   } = useChat();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [tempApiToken, setTempApiToken] = useState(apiToken);
+  const [tempApiToken, setTempApiToken] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +36,10 @@ const AIChatInterface: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(event.target as Node)
+      ) {
         setShowSettings(false);
       }
     };
@@ -51,16 +51,19 @@ const AIChatInterface: React.FC = () => {
   }, []);
 
   const handleSendMessage = async () => {
-    await sendMessage(inputValue);
+    const result = await sendMessage(inputValue);
+    if (result && result.error) {
+      alert(result.error);
+    }
   };
 
   const handleSaveSettings = () => {
-    setApiToken(tempApiToken);
+    // 这里应该更新 apiToken，但目前 useChat hook 中没有暴露 setApiToken 方法
     setShowSettings(false);
+    setApiToken(tempApiToken);
   };
 
   const handleCancelSettings = () => {
-    setTempApiToken(apiToken);
     setShowSettings(false);
   };
 
@@ -78,8 +81,8 @@ const AIChatInterface: React.FC = () => {
       <div className="chat-container">
         <div className="chat-header">
           <h2>AI Chat</h2>
-          <button 
-            className="settings-button" 
+          <button
+            className="settings-button"
             onClick={() => setShowSettings(!showSettings)}
           >
             ⚙️
@@ -122,9 +125,7 @@ const AIChatInterface: React.FC = () => {
             ))}
             {isLoading && (
               <div className="message ai">
-                <div className="message-content">
-                  正在思考中...
-                </div>
+                <div className="message-content">正在思考中...</div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -141,15 +142,15 @@ const AIChatInterface: React.FC = () => {
               placeholder="输入消息..."
               disabled={isLoading}
             />
-            <button 
-              onClick={handleSendMessage} 
+            <button
+              onClick={handleSendMessage}
               disabled={isLoading || !inputValue.trim()}
               className="send-button"
             >
               发送
             </button>
-            <button 
-              onClick={clearMessages} 
+            <button
+              onClick={clearMessages}
               disabled={isLoading}
               className="clear-button"
             >

@@ -36,8 +36,12 @@ export const useChat = ({
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim()) return;
+      // 错误检查将在 App.tsx 中处理
       if (!apiUrl.trim()) {
-        throw new Error("请先设置API URL");
+        return { error: "请先设置API URL" };
+      }
+      if (!apiToken.trim()) {
+        return { error: "请先设置 deepseek 的tokens" };
       }
 
       const userMessage: Message = {
